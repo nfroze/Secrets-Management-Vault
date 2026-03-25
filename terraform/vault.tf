@@ -8,7 +8,7 @@ resource "kubernetes_namespace" "vault" {
 
     labels = {
       "app.kubernetes.io/managed-by"           = "terraform"
-      "pod-security.kubernetes.io/enforce"     = "restricted"
+      "pod-security.kubernetes.io/enforce"     = "baseline"
       "pod-security.kubernetes.io/audit"       = "restricted"
       "pod-security.kubernetes.io/warn"        = "restricted"
     }
@@ -139,6 +139,22 @@ resource "helm_release" "vault" {
     value = "/vault/certs"
   }
 
+  # Extra volumes — Vault TLS certificates
+  set {
+    name  = "server.extraVolumes[1].type"
+    value = "secret"
+  }
+
+  set {
+    name  = "server.extraVolumes[1].name"
+    value = "vault-tls"
+  }
+
+  set {
+    name  = "server.extraVolumes[1].path"
+    value = "/vault/tls"
+  }
+
   # Readiness probe — standby/sealed/uninit pods must stay discoverable
   set {
     name  = "server.readinessProbe.enabled"
@@ -229,8 +245,8 @@ resource "helm_release" "vault" {
         tls_disable     = false
         address         = "[::]:8200"
         cluster_address = "[::]:8201"
-        tls_cert_file   = "/vault/tls/tls.crt"
-        tls_key_file    = "/vault/tls/tls.key"
+        tls_cert_file   = "/vault/tls/vault-tls/tls.crt"
+        tls_key_file    = "/vault/tls/vault-tls/tls.key"
         telemetry {
           unauthenticated_metrics_access = true
         }
@@ -241,23 +257,23 @@ resource "helm_release" "vault" {
 
         retry_join {
           leader_api_addr         = "https://vault-0.vault-internal:8200"
-          leader_ca_cert_file     = "/vault/tls/ca.crt"
-          leader_client_cert_file = "/vault/tls/tls.crt"
-          leader_client_key_file  = "/vault/tls/tls.key"
+          leader_ca_cert_file     = "/vault/tls/vault-tls/ca.crt"
+          leader_client_cert_file = "/vault/tls/vault-tls/tls.crt"
+          leader_client_key_file  = "/vault/tls/vault-tls/tls.key"
         }
 
         retry_join {
           leader_api_addr         = "https://vault-1.vault-internal:8200"
-          leader_ca_cert_file     = "/vault/tls/ca.crt"
-          leader_client_cert_file = "/vault/tls/tls.crt"
-          leader_client_key_file  = "/vault/tls/tls.key"
+          leader_ca_cert_file     = "/vault/tls/vault-tls/ca.crt"
+          leader_client_cert_file = "/vault/tls/vault-tls/tls.crt"
+          leader_client_key_file  = "/vault/tls/vault-tls/tls.key"
         }
 
         retry_join {
           leader_api_addr         = "https://vault-2.vault-internal:8200"
-          leader_ca_cert_file     = "/vault/tls/ca.crt"
-          leader_client_cert_file = "/vault/tls/tls.crt"
-          leader_client_key_file  = "/vault/tls/tls.key"
+          leader_ca_cert_file     = "/vault/tls/vault-tls/ca.crt"
+          leader_client_cert_file = "/vault/tls/vault-tls/tls.crt"
+          leader_client_key_file  = "/vault/tls/vault-tls/tls.key"
         }
       }
 
@@ -275,41 +291,33 @@ resource "helm_release" "vault" {
     EOT
   }
 
-  # Security context — hardened container
-  set {
-    name  = "server.securityContext.container.allowPrivilegeEscalation"
-    value = "false"
-  }
-
-  set {
-    name  = "server.securityContext.container.readOnlyRootFilesystem"
-    value = "true"
-  }
-
-  set {
-    name  = "server.securityContext.container.runAsNonRoot"
-    value = "true"
-  }
-
-  set {
-    name  = "server.securityContext.container.runAsUser"
-    value = "100"
-  }
-
-  set {
-    name  = "server.securityContext.container.runAsGroup"
-    value = "1000"
-  }
-
-  set {
-    name  = "server.securityContext.pod.runAsNonRoot"
-    value = "true"
-  }
-
-  set {
-    name  = "server.securityContext.pod.fsGroup"
-    value = "1000"
-  }
+  # Security context — passed as YAML block for correct nested structure
+  values = [yamlencode({
+    server = {
+      securityContext = {
+        pod = {
+          runAsNonRoot = true
+          fsGroup      = 1000
+          seccompProfile = {
+            type = "RuntimeDefault"
+          }
+        }
+        container = {
+          allowPrivilegeEscalation = false
+          readOnlyRootFilesystem   = true
+          runAsNonRoot             = true
+          runAsUser                = 100
+          runAsGroup               = 1000
+          seccompProfile = {
+            type = "RuntimeDefault"
+          }
+          capabilities = {
+            drop = ["ALL"]
+          }
+        }
+      }
+    }
+  })]
 
   # Pod disruption budget — maintain Raft quorum
   set {

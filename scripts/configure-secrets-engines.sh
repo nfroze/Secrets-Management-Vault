@@ -80,7 +80,7 @@ vault secrets enable -path=database database 2>/dev/null || echo "  (already ena
 vault write database/config/postgres \
   plugin_name="postgresql-database-plugin" \
   allowed_roles="readonly,readwrite" \
-  connection_url="postgresql://{{username}}:{{password}}@${RDS_ENDPOINT}:5432/${RDS_DB_NAME}?sslmode=verify-full&sslrootcert=/vault/certs/rds-ca-bundle.pem" \
+  connection_url="postgresql://{{username}}:{{password}}@${RDS_ENDPOINT}:5432/${RDS_DB_NAME}?sslmode=verify-full&sslrootcert=/vault/certs/rds-ca-bundle/rds-ca-bundle.pem" \
   username="vaultadmin" \
   password="${RDS_PASSWORD}" \
   password_authentication="scram-sha-256"

@@ -22,7 +22,7 @@ eks_node_max_size       = 5
 # RDS
 db_instance_class   = "db.t3.micro"
 db_name             = "appdb"
-db_engine_version   = "15.4"
+db_engine_version   = "15.15"
 db_allocated_storage = 20
 db_master_username  = "vaultadmin"
 

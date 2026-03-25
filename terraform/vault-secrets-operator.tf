@@ -25,7 +25,7 @@ resource "helm_release" "vault_secrets_operator" {
   namespace  = kubernetes_namespace.vso.metadata[0].name
   repository = "https://helm.releases.hashicorp.com"
   chart      = "vault-secrets-operator"
-  version    = "0.4.3"
+  version    = "0.10.0"
   timeout    = 300
 
   set {

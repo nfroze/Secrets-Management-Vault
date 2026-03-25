@@ -21,6 +21,7 @@ override.tf.json
 *.p12
 .vault-token
 vault-keys.json
+vault/tls/
 
 # Local build brief
 CLAUDE.md

@@ -17,6 +17,7 @@ resource "aws_db_instance" "main" {
   identifier     = "${var.project_name}-postgres"
   engine         = "postgres"
   engine_version = var.engine_version
+  auto_minor_version_upgrade = true
   instance_class = var.instance_class
 
   allocated_storage     = var.allocated_storage
@@ -102,7 +103,7 @@ resource "aws_db_parameter_group" "main" {
 
 resource "aws_security_group" "rds" {
   name_prefix = "${var.project_name}-rds-"
-  description = "Security group for RDS PostgreSQL — allows access from EKS only"
+  description = "Security group for RDS PostgreSQL - allows access from EKS only"
   vpc_id      = var.vpc_id
 
   tags = merge(var.common_tags, {

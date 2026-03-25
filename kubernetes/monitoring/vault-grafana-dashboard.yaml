@@ -1,8 +1,7 @@
 ########################################
 # Vault Grafana Dashboard — ConfigMap
 # Auto-loaded by Grafana via the dashboard provisioner.
-# Covers: seal status, request rate, token count, lease activity,
-# secrets engine usage, auth method performance, and audit log rate.
+# Uses actual Vault 1.15.x Prometheus metrics.
 ########################################
 apiVersion: v1
 kind: ConfigMap
@@ -10,7 +9,8 @@ metadata:
   name: vault-grafana-dashboard
   namespace: monitoring
   labels:
-    grafana_dashboard: "true"
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: vault
 data:
   vault-overview.json: |
     {
@@ -21,203 +21,291 @@ data:
       "links": [],
       "panels": [
         {
-          "title": "Vault Seal Status",
-          "type": "stat",
-          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-          "targets": [
-            {
-              "expr": "vault_core_unsealed",
-              "legendFormat": "{{ pod }}"
-            }
-          ],
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "title": "Cluster Status",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
+              "color": { "mode": "thresholds" },
               "mappings": [
-                { "options": { "0": { "text": "SEALED", "color": "red" }, "1": { "text": "UNSEALED", "color": "green" } }, "type": "value" }
+                { "options": { "0": { "color": "red", "text": "UNHEALTHY" }, "1": { "color": "green", "text": "HEALTHY" } }, "type": "value" }
               ],
               "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
             }
-          }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+          "id": 1,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+          "title": "Autopilot Health",
+          "type": "stat",
+          "targets": [{ "expr": "vault_autopilot_healthy", "legendFormat": "{{instance}}" }]
         },
         {
-          "title": "HA Active Node",
-          "type": "stat",
-          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-          "targets": [
-            {
-              "expr": "vault_core_active",
-              "legendFormat": "{{ pod }}"
-            }
-          ],
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
+              "color": { "mode": "thresholds" },
               "mappings": [
-                { "options": { "0": { "text": "STANDBY", "color": "yellow" }, "1": { "text": "ACTIVE", "color": "green" } }, "type": "value" }
-              ]
+                { "options": { "0": { "color": "red", "text": "SEALED" }, "1": { "color": "green", "text": "UNSEALED" } }, "type": "value" }
+              ],
+              "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
             }
-          }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+          "id": 2,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+          "title": "Seal Status",
+          "type": "stat",
+          "targets": [{ "expr": "vault_core_unsealed", "legendFormat": "{{instance}}" }]
         },
         {
-          "title": "Raft Peers",
-          "type": "stat",
-          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-          "targets": [
-            {
-              "expr": "vault_raft_peers",
-              "legendFormat": "peers"
-            }
-          ],
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
-              "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 2 }, { "color": "green", "value": 3 }] }
+              "color": { "mode": "thresholds" },
+              "mappings": [
+                { "options": { "0": { "color": "blue", "text": "STANDBY" }, "1": { "color": "green", "text": "ACTIVE" } }, "type": "value" }
+              ],
+              "thresholds": { "steps": [{ "color": "blue", "value": null }, { "color": "green", "value": 1 }] }
             }
-          }
-        },
-        {
-          "title": "Total Tokens",
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+          "id": 3,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+          "title": "Active Node",
           "type": "stat",
-          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
-          "targets": [
-            {
-              "expr": "vault_token_count",
-              "legendFormat": "tokens"
-            }
-          ]
+          "targets": [{ "expr": "vault_core_active", "legendFormat": "{{instance}}" }]
         },
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 100 }] }
+            }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+          "id": 4,
+          "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
           "title": "Active Leases",
           "type": "stat",
-          "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
-          "targets": [
-            {
-              "expr": "vault_expire_num_leases",
-              "legendFormat": "leases"
+          "targets": [{ "expr": "vault_expire_num_leases", "legendFormat": "leases" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 1 }, { "color": "green", "value": 2 }] }
             }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+          "id": 5,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+          "title": "Failure Tolerance",
+          "type": "stat",
+          "targets": [{ "expr": "vault_autopilot_failure_tolerance", "legendFormat": "nodes" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "steps": [{ "color": "green", "value": null }] }
+            }
+          },
+          "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+          "id": 6,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "auto" },
+          "title": "Mount Table Entries",
+          "type": "stat",
+          "targets": [{ "expr": "vault_core_mount_table_num_entries", "legendFormat": "{{instance}}" }]
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+          "id": 101,
+          "title": "Request & Audit Activity",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } },
+              "unit": "ops"
+            }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
+          "id": 10,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Request Rate",
+          "type": "timeseries",
+          "targets": [{ "expr": "rate(vault_core_handle_request_count[5m])", "legendFormat": "{{instance}}" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } },
+              "unit": "ops"
+            }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
+          "id": 11,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Audit Log Rate",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "rate(vault_audit_log_request_count[5m])", "legendFormat": "requests" },
+            { "expr": "rate(vault_audit_log_response_count[5m])", "legendFormat": "responses" }
           ]
         },
         {
-          "title": "Vault Request Rate",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
-          "targets": [
-            {
-              "expr": "rate(vault_core_handle_request_count[5m])",
-              "legendFormat": "{{ pod }}"
-            }
-          ],
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
-              "unit": "reqps",
-              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } },
+              "unit": "ops"
             }
-          }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
+          "id": 12,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Raft Operations",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "rate(vault_raft_apply[5m])", "legendFormat": "apply" },
+            { "expr": "rate(vault_raft_commitTime_count[5m])", "legendFormat": "commits" }
+          ]
         },
         {
-          "title": "Request Duration (p99)",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.99, rate(vault_core_handle_request_duration_seconds_bucket[5m]))",
-              "legendFormat": "p99"
-            },
-            {
-              "expr": "histogram_quantile(0.50, rate(vault_core_handle_request_duration_seconds_bucket[5m]))",
-              "legendFormat": "p50"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "custom": { "drawStyle": "line", "fillOpacity": 10 }
-            }
-          }
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+          "id": 102,
+          "title": "Runtime & Resources",
+          "type": "row"
         },
         {
-          "title": "Secrets Engine — Credential Generation Rate",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
-          "targets": [
-            {
-              "expr": "rate(vault_secret_lease_creation_count[5m])",
-              "legendFormat": "lease creation"
-            },
-            {
-              "expr": "rate(vault_secret_lease_revocation_count[5m])",
-              "legendFormat": "lease revocation"
-            }
-          ],
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
-              "unit": "ops",
-              "custom": { "drawStyle": "bars", "fillOpacity": 50 }
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 15, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } },
+              "unit": "bytes"
             }
-          }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 15 },
+          "id": 20,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Memory Allocation",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "vault_runtime_alloc_bytes", "legendFormat": "alloc {{instance}}" },
+            { "expr": "vault_runtime_sys_bytes", "legendFormat": "sys {{instance}}" }
+          ]
         },
         {
-          "title": "Auth Method — Login Rate",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
-          "targets": [
-            {
-              "expr": "rate(vault_core_handle_login_request_count[5m])",
-              "legendFormat": "{{ pod }}"
-            }
-          ],
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
-              "unit": "reqps",
-              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 15, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } }
             }
-          }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 15 },
+          "id": 21,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Goroutines",
+          "type": "timeseries",
+          "targets": [{ "expr": "vault_runtime_num_goroutines", "legendFormat": "{{instance}}" }]
         },
         {
-          "title": "Audit Log — Operations per Second",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
-          "targets": [
-            {
-              "expr": "rate(vault_audit_log_request_count[5m])",
-              "legendFormat": "requests"
-            },
-            {
-              "expr": "rate(vault_audit_log_response_count[5m])",
-              "legendFormat": "responses"
-            }
-          ],
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
-              "unit": "ops",
-              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "scheme", "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "normal" } }
             }
-          }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 15 },
+          "id": 22,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Tokens by Auth Method",
+          "type": "timeseries",
+          "targets": [{ "expr": "vault_token_count_by_auth", "legendFormat": "{{auth_method}}" }]
         },
         {
-          "title": "Transit Encryption Operations",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
-          "targets": [
-            {
-              "expr": "rate(vault_transit_encrypt_count[5m])",
-              "legendFormat": "encrypt"
-            },
-            {
-              "expr": "rate(vault_transit_decrypt_count[5m])",
-              "legendFormat": "decrypt"
-            }
-          ],
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+          "id": 103,
+          "title": "Raft Storage",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": {
-              "unit": "ops",
-              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 15, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } },
+              "unit": "ms"
             }
-          }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+          "id": 30,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Raft Follower Heartbeat Latency",
+          "type": "timeseries",
+          "targets": [{ "expr": "vault_raft_storage_follower_last_heartbeat_ms", "legendFormat": "{{instance}}" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 15, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } }
+            }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+          "id": 31,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Raft Applied Index Delta",
+          "type": "timeseries",
+          "targets": [{ "expr": "vault_raft_storage_follower_applied_index_delta", "legendFormat": "{{instance}}" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "drawStyle": "line", "fillOpacity": 15, "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "mode": "none" } },
+              "unit": "bytes"
+            }
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+          "id": 32,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "title": "Bolt DB Page Bytes",
+          "type": "timeseries",
+          "targets": [{ "expr": "vault_raft_storage_bolt_page_bytes_allocated", "legendFormat": "{{instance}}" }]
         }
       ],
-      "schemaVersion": 38,
-      "tags": ["vault", "hashicorp", "secrets"],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["vault", "hashicorp", "secrets-management"],
       "templating": { "list": [] },
-      "time": { "from": "now-1h", "to": "now" },
+      "time": { "from": "now-15m", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
       "title": "Vault Overview",
-      "uid": "vault-overview"
+      "uid": "vault-overview",
+      "version": 1
     }

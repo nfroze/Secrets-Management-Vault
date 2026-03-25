@@ -9,6 +9,11 @@ set -euo pipefail
 
 NAMESPACE="vault"
 VAULT_POD="vault-0"
+# Helper: run vault CLI inside the pod, skipping TLS verify for self-signed certs
+vault_exec() {
+  kubectl exec -n "${NAMESPACE}" "${VAULT_POD}" -- \
+    env VAULT_SKIP_VERIFY=true vault "$@"
+}
 
 echo "========================================="
 echo "  Vault Initialization"
@@ -26,14 +31,12 @@ kubectl wait --for=condition=Ready pod/${VAULT_POD} \
 
 # Check if already initialized
 echo "[2/5] Checking Vault status..."
-INIT_STATUS=$(kubectl exec -n "${NAMESPACE}" "${VAULT_POD}" -- \
-  vault status -format=json 2>/dev/null | jq -r '.initialized' || echo "false")
+INIT_STATUS=$(vault_exec status -format=json 2>/dev/null | jq -r '.initialized' || echo "false")
 
 if [ "${INIT_STATUS}" = "true" ]; then
   echo "  Vault is already initialized."
 
-  SEAL_STATUS=$(kubectl exec -n "${NAMESPACE}" "${VAULT_POD}" -- \
-    vault status -format=json 2>/dev/null | jq -r '.sealed' || echo "true")
+  SEAL_STATUS=$(vault_exec status -format=json 2>/dev/null | jq -r '.sealed' || echo "true")
 
   if [ "${SEAL_STATUS}" = "false" ]; then
     echo "  Vault is already unsealed (KMS auto-unseal active)."
@@ -45,8 +48,7 @@ if [ "${INIT_STATUS}" = "true" ]; then
 else
   # Initialize Vault with KMS auto-unseal (no Shamir key shares needed)
   echo "[3/5] Initializing Vault..."
-  INIT_OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${VAULT_POD}" -- \
-    vault operator init -format=json -recovery-shares=5 -recovery-threshold=3)
+  INIT_OUTPUT=$(vault_exec operator init -format=json -recovery-shares=5 -recovery-threshold=3)
 
   echo "${INIT_OUTPUT}" > /tmp/vault-init-keys.json
 
@@ -84,11 +86,9 @@ done
 # Verify Raft cluster status
 echo "[5/5] Verifying Raft cluster..."
 if [ -n "${ROOT_TOKEN:-}" ]; then
-  kubectl exec -n "${NAMESPACE}" "${VAULT_POD}" -- \
-    vault login "${ROOT_TOKEN}" >/dev/null 2>&1
+  vault_exec login "${ROOT_TOKEN}" >/dev/null 2>&1
 
-  kubectl exec -n "${NAMESPACE}" "${VAULT_POD}" -- \
-    vault operator raft list-peers
+  vault_exec operator raft list-peers
 else
   echo "  (Skipping — log in with root token to check Raft peers)"
 fi

@@ -57,6 +57,12 @@ spec:
               value: "3000"
             - name: NODE_ENV
               value: production
+            - name: DB_HOST
+              value: "secrets-vault-postgres.cdsu8c8omuo3.eu-west-2.rds.amazonaws.com"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "appdb"
 
           # TLS certificate volume mount (Vault PKI Engine → VSO → K8s Secret)
           volumeMounts:

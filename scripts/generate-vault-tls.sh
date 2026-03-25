@@ -6,7 +6,15 @@
 
 set -euo pipefail
 
-CERT_DIR="$(cd "$(dirname "$0")/.." && pwd)/vault/tls"
+# Prevent MINGW64 (Git Bash on Windows) from converting /C=GB/... to Windows paths
+export MSYS_NO_PATHCONV=1
+
+# Use pwd -W on MINGW64 to get Windows-native paths for openssl
+if [ -n "${MSYSTEM:-}" ]; then
+  CERT_DIR="$(cd "$(dirname "$0")/.." && pwd -W)/vault/tls"
+else
+  CERT_DIR="$(cd "$(dirname "$0")/.." && pwd)/vault/tls"
+fi
 NAMESPACE="vault"
 SERVICE="vault"
 SECRET_NAME="vault-tls"

@@ -7,7 +7,7 @@
 FROM node:20-alpine AS builder
 
 WORKDIR /build
-COPY package.json ./
+COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # Stage 2: Production image

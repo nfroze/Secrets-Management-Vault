@@ -30,9 +30,10 @@ function createDbPool() {
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT || "5432"),
     database: process.env.DB_NAME,
-    user: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    ssl: { rejectUnauthorized: process.env.DB_SSLMODE === "verify-full" },
+    // Vault database engine returns 'username' and 'password' as raw keys
+    user: process.env.DB_USERNAME || process.env.username,
+    password: process.env.DB_PASSWORD || process.env.password,
+    ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
@@ -116,13 +117,12 @@ app.get("/health", async (req, res) => {
     checks.status = "degraded";
   }
 
-  // AWS credentials presence
+  // AWS credentials presence (raw keys from Vault: access_key, secret_key)
+  const awsKey = process.env.AWS_ACCESS_KEY_ID || process.env.access_key;
   checks.checks.aws = {
-    status: process.env.AWS_ACCESS_KEY_ID ? "configured" : "missing",
-    accessKeyPrefix: process.env.AWS_ACCESS_KEY_ID
-      ? `${process.env.AWS_ACCESS_KEY_ID.substring(0, 8)}...`
-      : null,
-    region: process.env.AWS_DEFAULT_REGION,
+    status: awsKey ? "configured" : "missing",
+    accessKeyPrefix: awsKey ? `${awsKey.substring(0, 8)}...` : null,
+    region: process.env.AWS_DEFAULT_REGION || "eu-west-2",
   };
 
   // TLS certificate
@@ -263,18 +263,17 @@ app.get("/api/credentials/summary", (req, res) => {
     credentials: {
       database: {
         source: "Vault Database Secrets Engine → VaultDynamicSecret CRD → K8s Secret",
-        user: process.env.DB_USERNAME,
+        user: process.env.DB_USERNAME || process.env.username,
         host: process.env.DB_HOST,
         database: process.env.DB_NAME,
-        sslMode: process.env.DB_SSLMODE,
         note: "Dynamic credential — unique to this pod, auto-revoked on expiry",
       },
       aws: {
         source: "Vault AWS Secrets Engine → VaultDynamicSecret CRD → K8s Secret",
-        accessKeyPrefix: process.env.AWS_ACCESS_KEY_ID
-          ? `${process.env.AWS_ACCESS_KEY_ID.substring(0, 8)}...`
+        accessKeyPrefix: (process.env.AWS_ACCESS_KEY_ID || process.env.access_key)
+          ? `${(process.env.AWS_ACCESS_KEY_ID || process.env.access_key).substring(0, 8)}...`
           : "not configured",
-        region: process.env.AWS_DEFAULT_REGION,
+        region: process.env.AWS_DEFAULT_REGION || "eu-west-2",
         note: "Dynamic IAM user — created on demand, deleted on lease expiry",
       },
       tls: {
@@ -301,7 +300,7 @@ const PORT = parseInt(process.env.PORT || "3000");
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Secrets Vault Demo running on port ${PORT}`);
-  console.log(`Database user: ${process.env.DB_USERNAME || "not set"}`);
-  console.log(`AWS configured: ${process.env.AWS_ACCESS_KEY_ID ? "yes" : "no"}`);
+  console.log(`Database user: ${process.env.DB_USERNAME || process.env.username || "not set"}`);
+  console.log(`AWS configured: ${(process.env.AWS_ACCESS_KEY_ID || process.env.access_key) ? "yes" : "no"}`);
   console.log(`Transit key: ${VAULT_TRANSIT_KEY}`);
 });

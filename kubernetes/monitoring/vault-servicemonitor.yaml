@@ -20,7 +20,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: vault
   endpoints:
-    - port: http
+    - port: https
       path: /v1/sys/metrics
       params:
         format: ["prometheus"]
