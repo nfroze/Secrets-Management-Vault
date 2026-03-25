@@ -24,10 +24,10 @@ variable "common_tags" {
   description = "Tags applied to every resource"
   type        = map(string)
   default = {
-    Project     = "Secrets-Management-Vault"
-    ManagedBy   = "Terraform"
-    Owner       = "Noah Frost"
-    Portfolio   = "DevSecOps"
+    Project   = "Secrets-Management-Vault"
+    ManagedBy = "Terraform"
+    Owner     = "Noah Frost"
+    Portfolio = "DevSecOps"
   }
 }
 

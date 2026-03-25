@@ -1,0 +1,125 @@
+########################################
+# CI Pipeline — Validation & Security Scanning
+#
+# Runs on every push and PR. No Vault or AWS access required.
+# Validates Terraform, scans for security issues, and builds
+# the container image to verify it compiles cleanly.
+########################################
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # =========================================================
+  # Terraform Validation & Security Scanning
+  # =========================================================
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+          soft_fail: true
+
+  # =========================================================
+  # Container Build & Vulnerability Scan
+  # =========================================================
+  container-scan:
+    name: Container Build & Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t secrets-vault-demo:ci ./app
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: secrets-vault-demo:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL
+
+  # =========================================================
+  # Policy & Configuration Lint
+  # =========================================================
+  vault-policy-lint:
+    name: Vault Policy Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate HCL policy files
+        run: |
+          echo "Checking Vault policy files..."
+          for f in vault/policies/*.hcl; do
+            echo "  Validating: ${f}"
+            # Check for valid HCL structure (basic syntax check)
+            if ! grep -q 'path' "$f"; then
+              echo "  ERROR: ${f} does not contain any path stanzas"
+              exit 1
+            fi
+          done
+          echo "All policy files valid."
+
+      - name: Validate Kubernetes manifests
+        run: |
+          echo "Checking Kubernetes YAML files..."
+          find kubernetes/ -name '*.yaml' -type f | while read f; do
+            echo "  Validating: ${f}"
+            # Basic YAML syntax check
+            python3 -c "import yaml; yaml.safe_load(open('${f}'))" || exit 1
+          done
+          echo "All manifests valid."
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Scanning for potential hardcoded secrets..."
+          # Check for common secret patterns (base64 tokens, AWS keys, etc.)
+          if grep -rn 'AKIA[0-9A-Z]\{16\}' --include='*.yaml' --include='*.tf' --include='*.js' --include='*.sh' .; then
+            echo "ERROR: Potential AWS access key found!"
+            exit 1
+          fi
+          if grep -rn 'hvs\.[a-zA-Z0-9]\{24\}' --include='*.yaml' --include='*.tf' --include='*.js' --include='*.sh' .; then
+            echo "ERROR: Potential Vault token found!"
+            exit 1
+          fi
+          echo "No hardcoded secrets detected."

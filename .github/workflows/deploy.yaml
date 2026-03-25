@@ -16,13 +16,15 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "app/**"
-      - "kubernetes/**"
-      - ".github/workflows/deploy.yaml"
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
 
 env:
   AWS_REGION: eu-west-2

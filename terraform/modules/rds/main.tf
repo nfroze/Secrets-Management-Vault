@@ -14,11 +14,11 @@ resource "random_password" "master" {
 ########################################
 
 resource "aws_db_instance" "main" {
-  identifier     = "${var.project_name}-postgres"
-  engine         = "postgres"
-  engine_version = var.engine_version
+  identifier                 = "${var.project_name}-postgres"
+  engine                     = "postgres"
+  engine_version             = var.engine_version
   auto_minor_version_upgrade = true
-  instance_class = var.instance_class
+  instance_class             = var.instance_class
 
   allocated_storage     = var.allocated_storage
   max_allocated_storage = var.allocated_storage * 2
