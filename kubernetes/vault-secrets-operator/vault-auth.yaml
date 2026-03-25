@@ -1,0 +1,19 @@
+########################################
+# VaultAuth — configures how VSO authenticates to Vault
+# Uses Kubernetes auth method with the VSO service account.
+# The audiences field is critical for same-cluster auth.
+########################################
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault-auth
+  namespace: vault-secrets-operator-system
+spec:
+  vaultConnectionRef: vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-secrets-operator
+    serviceAccount: vault-secrets-operator-controller-manager
+    audiences:
+      - vault

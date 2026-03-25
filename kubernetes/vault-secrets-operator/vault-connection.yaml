@@ -1,0 +1,15 @@
+########################################
+# VaultConnection — defines how VSO connects to the Vault cluster
+# The CA cert secret must exist before this resource is applied.
+########################################
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: vault-connection
+  namespace: vault-secrets-operator-system
+spec:
+  # Internal Vault service endpoint (TLS)
+  address: https://vault.vault.svc.cluster.local:8200
+  # CA certificate for TLS verification
+  caCertSecretRef: vault-tls-ca
+  skipTLSVerify: false

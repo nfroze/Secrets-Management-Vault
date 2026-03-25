@@ -1,0 +1,35 @@
+########################################
+# VaultStaticSecret — Transit Engine Configuration
+# Syncs the Vault address and auth path into a ConfigMap-style Secret
+# so the application knows where to send encrypt/decrypt requests.
+# The transit key itself never leaves Vault — only the connection
+# details are stored in Kubernetes.
+########################################
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: transit-config
+  namespace: app
+  labels:
+    app.kubernetes.io/part-of: demo-app
+spec:
+  vaultAuthRef: vault-auth
+  mount: transit
+  path: keys/app-data
+  type: kv-v1
+  refreshAfter: 1h
+  destination:
+    name: transit-config
+    create: true
+    labels:
+      app.kubernetes.io/part-of: demo-app
+    type: Opaque
+    transformation:
+      excludeRaw: true
+      templates:
+        VAULT_ADDR:
+          text: "https://vault.vault.svc.cluster.local:8200"
+        VAULT_TRANSIT_KEY:
+          text: app-data
+        VAULT_TRANSIT_MOUNT:
+          text: transit

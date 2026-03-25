@@ -1,0 +1,19 @@
+########################################
+# VaultAuth for the app namespace
+# Uses the demo-app service account to authenticate to Vault.
+# This is a per-namespace VaultAuth so secrets are scoped correctly.
+########################################
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault-auth
+  namespace: app
+spec:
+  vaultConnectionRef: vault-secrets-operator-system/vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: app
+    serviceAccount: demo-app
+    audiences:
+      - vault
