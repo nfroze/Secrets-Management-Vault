@@ -1,0 +1,35 @@
+# Dev Environment Configuration
+# Copy to terraform.tfvars and adjust values as needed
+
+project_name = "secrets-vault"
+environment  = "dev"
+aws_region   = "eu-west-2"
+
+# VPC
+vpc_cidr              = "10.0.0.0/16"
+availability_zones    = ["eu-west-2a", "eu-west-2b", "eu-west-2c"]
+private_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+public_subnet_cidrs   = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+database_subnet_cidrs = ["10.0.201.0/24", "10.0.202.0/24", "10.0.203.0/24"]
+
+# EKS
+eks_cluster_version     = "1.29"
+eks_node_instance_types = ["t3.medium"]
+eks_node_desired_size   = 3
+eks_node_min_size       = 2
+eks_node_max_size       = 5
+
+# RDS
+db_instance_class   = "db.t3.micro"
+db_name             = "appdb"
+db_engine_version   = "15.4"
+db_allocated_storage = 20
+db_master_username  = "vaultadmin"
+
+# Tags
+common_tags = {
+  Project   = "Secrets-Management-Vault"
+  ManagedBy = "Terraform"
+  Owner     = "Noah Frost"
+  Portfolio = "DevSecOps"
+}
