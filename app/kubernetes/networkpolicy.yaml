@@ -1,0 +1,59 @@
+########################################
+# NetworkPolicy — restrict demo app traffic
+# Ingress: only from within the cluster
+# Egress: only to Vault (transit API), RDS (database), DNS
+########################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: demo-app
+  namespace: app
+  labels:
+    app.kubernetes.io/name: demo-app
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: demo-app
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from within the cluster
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Vault API (transit encrypt/decrypt)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault
+      ports:
+        - port: 8200
+          protocol: TCP
+    # RDS PostgreSQL (via VPC CIDR — RDS is outside the cluster)
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Kubernetes API (for service account token auth)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+          protocol: TCP

@@ -1,0 +1,115 @@
+########################################
+# Demo Application Deployment
+# Consumes ALL secrets from Kubernetes Secrets synced by VSO.
+# Zero Vault-specific code — standard K8s Secret consumption.
+########################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: app
+  labels:
+    app.kubernetes.io/name: demo-app
+    app.kubernetes.io/part-of: secrets-vault-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: demo-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: demo-app
+        app.kubernetes.io/part-of: secrets-vault-demo
+    spec:
+      serviceAccountName: demo-app
+      automountServiceAccountToken: true
+
+      # Security context — hardened pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: demo-app
+          image: demo-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          # Database credentials (Vault Database Engine → VSO → K8s Secret)
+          envFrom:
+            - secretRef:
+                name: db-credentials
+            - secretRef:
+                name: aws-credentials
+            - secretRef:
+                name: transit-config
+
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NODE_ENV
+              value: production
+
+          # TLS certificate volume mount (Vault PKI Engine → VSO → K8s Secret)
+          volumeMounts:
+            - name: tls-cert
+              mountPath: /tls
+              readOnly: true
+
+          # Security context — hardened container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
+
+          # Resource limits
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+
+          # Probes
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
+      volumes:
+        - name: tls-cert
+          secret:
+            secretName: app-tls-certificate
+
+      # Spread across nodes
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: demo-app
