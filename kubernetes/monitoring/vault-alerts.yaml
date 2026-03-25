@@ -1,0 +1,85 @@
+########################################
+# PrometheusRule — Vault Alerting Rules
+# Fires alerts for sealed nodes, quorum loss, high request
+# latency, lease exhaustion, and audit log failures.
+########################################
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vault-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: vault.rules
+      rules:
+        # CRITICAL: Vault node is sealed
+        - alert: VaultSealed
+          expr: vault_core_unsealed == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Vault node {{ $labels.pod }} is sealed"
+            description: "Vault pod {{ $labels.pod }} has been sealed for more than 1 minute. KMS auto-unseal may have failed. Check IRSA permissions and KMS key availability."
+
+        # CRITICAL: No active Vault leader
+        - alert: VaultNoActiveLeader
+          expr: sum(vault_core_active) == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No active Vault leader detected"
+            description: "No Vault pod is reporting as the active leader. The cluster cannot serve requests. Check Raft consensus and pod health."
+
+        # WARNING: Raft quorum degraded
+        - alert: VaultRaftQuorumDegraded
+          expr: vault_raft_peers < 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Vault Raft cluster has fewer than 3 peers"
+            description: "Raft peer count is {{ $value }}. Expected 3 for HA. A pod may have failed to rejoin after restart."
+
+        # WARNING: High request latency
+        - alert: VaultHighRequestLatency
+          expr: histogram_quantile(0.99, rate(vault_core_handle_request_duration_seconds_bucket[5m])) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Vault p99 request latency exceeds 1 second"
+            description: "p99 latency is {{ $value }}s. This may indicate resource contention, slow storage, or high request volume."
+
+        # WARNING: Approaching lease limit
+        - alert: VaultHighLeaseCount
+          expr: vault_expire_num_leases > 250000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Vault lease count is high ({{ $value }})"
+            description: "Large numbers of active leases increase memory usage and revocation overhead. Consider reducing TTLs or scaling."
+
+        # CRITICAL: Audit logging failure
+        - alert: VaultAuditLogFailure
+          expr: rate(vault_audit_log_request_failure_count[5m]) > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Vault audit logging is failing"
+            description: "Audit log write failures detected. Vault will block ALL requests if audit logging cannot complete. Check audit log volume and disk space immediately."
+
+        # WARNING: Token creation spike
+        - alert: VaultTokenCreationSpike
+          expr: rate(vault_token_create_count[5m]) > 50
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Unusual token creation rate ({{ $value }}/s)"
+            description: "Token creation rate is abnormally high. This may indicate a credential leak, misconfigured application, or brute-force attempt."

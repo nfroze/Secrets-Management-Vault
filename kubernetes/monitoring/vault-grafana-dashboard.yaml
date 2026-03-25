@@ -1,0 +1,223 @@
+########################################
+# Vault Grafana Dashboard — ConfigMap
+# Auto-loaded by Grafana via the dashboard provisioner.
+# Covers: seal status, request rate, token count, lease activity,
+# secrets engine usage, auth method performance, and audit log rate.
+########################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-grafana-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "true"
+data:
+  vault-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Vault Seal Status",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "vault_core_unsealed",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "options": { "0": { "text": "SEALED", "color": "red" }, "1": { "text": "UNSEALED", "color": "green" } }, "type": "value" }
+              ],
+              "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+            }
+          }
+        },
+        {
+          "title": "HA Active Node",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+          "targets": [
+            {
+              "expr": "vault_core_active",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "options": { "0": { "text": "STANDBY", "color": "yellow" }, "1": { "text": "ACTIVE", "color": "green" } }, "type": "value" }
+              ]
+            }
+          }
+        },
+        {
+          "title": "Raft Peers",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+          "targets": [
+            {
+              "expr": "vault_raft_peers",
+              "legendFormat": "peers"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 2 }, { "color": "green", "value": 3 }] }
+            }
+          }
+        },
+        {
+          "title": "Total Tokens",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "vault_token_count",
+              "legendFormat": "tokens"
+            }
+          ]
+        },
+        {
+          "title": "Active Leases",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+          "targets": [
+            {
+              "expr": "vault_expire_num_leases",
+              "legendFormat": "leases"
+            }
+          ]
+        },
+        {
+          "title": "Vault Request Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [
+            {
+              "expr": "rate(vault_core_handle_request_count[5m])",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Request Duration (p99)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, rate(vault_core_handle_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "p99"
+            },
+            {
+              "expr": "histogram_quantile(0.50, rate(vault_core_handle_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "p50"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Secrets Engine — Credential Generation Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "expr": "rate(vault_secret_lease_creation_count[5m])",
+              "legendFormat": "lease creation"
+            },
+            {
+              "expr": "rate(vault_secret_lease_revocation_count[5m])",
+              "legendFormat": "lease revocation"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "bars", "fillOpacity": 50 }
+            }
+          }
+        },
+        {
+          "title": "Auth Method — Login Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [
+            {
+              "expr": "rate(vault_core_handle_login_request_count[5m])",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Audit Log — Operations per Second",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+          "targets": [
+            {
+              "expr": "rate(vault_audit_log_request_count[5m])",
+              "legendFormat": "requests"
+            },
+            {
+              "expr": "rate(vault_audit_log_response_count[5m])",
+              "legendFormat": "responses"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Transit Encryption Operations",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+          "targets": [
+            {
+              "expr": "rate(vault_transit_encrypt_count[5m])",
+              "legendFormat": "encrypt"
+            },
+            {
+              "expr": "rate(vault_transit_decrypt_count[5m])",
+              "legendFormat": "decrypt"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 38,
+      "tags": ["vault", "hashicorp", "secrets"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Vault Overview",
+      "uid": "vault-overview"
+    }
