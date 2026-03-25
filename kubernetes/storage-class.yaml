@@ -1,0 +1,19 @@
+########################################
+# GP3 StorageClass for Vault Raft PVCs
+# WaitForFirstConsumer ensures PVC is created in same AZ as the pod,
+# preventing cross-AZ scheduling failures with EBS volumes.
+########################################
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vault-storage
+  labels:
+    app.kubernetes.io/part-of: vault
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+  fsType: ext4
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
